@@ -1,11 +1,12 @@
 from datetime import datetime
-
 from uuid import uuid4
-
-from flask import Flask, jsonify, request
+import jinja2
+import pdfkit as pdfkit
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from marshmallow import fields
+from pipenv.vendor import dateutil
 from sqlalchemy import Column, String, Float, DateTime, Boolean, ForeignKey, event, engine, Integer
 import os
 from flask_marshmallow import Marshmallow
@@ -19,6 +20,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'in
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
 CORS(app)
+template_loader = jinja2.FileSystemLoader(searchpath="./templates")
+template_env = jinja2.Environment(loader=template_loader)
 
 
 @event.listens_for(Engine, "connect")
@@ -48,12 +51,25 @@ def db_seed():
         product_price=50,
         product_vat_percent=5
     )
+    insert_product(
+        product_name='Designing',
+        product_description='Design various stuff',
+        product_price=50,
+        product_vat_percent=5
+    )
     insert_client(
         client_name='Alpha Tech',
-        client_tin='82375628377',
+        client_tin='82375628378',
         client_address='Somewhere on the earth',
         client_city='Jedda',
         is_client_taxable=True
+    )
+    insert_client(
+        client_name='Beta Tech',
+        client_tin='82375628379',
+        client_address='Somewhere on the earth',
+        client_city='Bangalore',
+        is_client_taxable=False
     )
     print('Database seeded!')
 
@@ -205,8 +221,17 @@ def create_invoice():
         data['total_tax_amount'] = 0
         data['invoice_net_amount'] = 0
         client_details = get_client_by_id(data['client_id'])
+        is_client_taxable = getattr(client_details, 'is_client_taxable')
         if not client_details:
             return jsonify(status='ERROR', error_code='CLIENT_NOT_FOUND', message='Client not found!'), 404
+
+        # Make copy of client details as they are subject to changes
+        data['client_name'] = getattr(client_details, 'client_name')
+        data['client_address'] = getattr(client_details, 'client_address')
+        data['client_city'] = getattr(client_details, 'client_city')
+        data['client_tin'] = getattr(client_details, 'client_tin')
+        data['is_client_taxable'] = is_client_taxable
+
         invoice_items = data['invoice_items']
         if len(invoice_items) < 1:
             return jsonify(status='ERROR', errors=['Invoice must contain at least one invoice item']), 400
@@ -224,12 +249,16 @@ def create_invoice():
             gross_amount = total_price + markup_amount
             discount_amount = gross_amount * (discount_percent / 100)
             amount_after_discount = gross_amount - discount_amount
-            vat_amount = amount_after_discount * (vat_percent / 100)
+            vat_amount = amount_after_discount * (vat_percent / 100) if is_client_taxable else 0
             net_amount = amount_after_discount + vat_amount
+
+            # Make copy of these entries as product details are subject to change
             invoice_items[i]['product_price'] = price_per_unit
             invoice_items[i]['product_price_currency'] = getattr(product, 'product_price_currency')
             invoice_items[i]['product_name'] = getattr(product, 'product_name')
             invoice_items[i]['product_vat_percent'] = vat_percent
+
+            # Save calculations to the database
             invoice_items[i]['total_price'] = total_price
             invoice_items[i]['markup_amount'] = markup_amount
             invoice_items[i]['gross_amount'] = gross_amount
@@ -241,6 +270,7 @@ def create_invoice():
             data['total_tax_amount'] += vat_amount
             invoice_items[i]['net_amount'] = net_amount
             data['invoice_net_amount'] += net_amount
+
             item = InvoiceItem(**invoice_items[i], invoice_item_id=uuid4().hex)
             data['invoice_items'][i] = item
         invoice = Invoice(**data)
@@ -249,6 +279,43 @@ def create_invoice():
         return jsonify(status='SUCCESS', message='Invoice created successfully!', invoice_details=invoice_schema.dump(invoice)), 201
     except Exception as e:
         db.session.rollback()
+        return jsonify(status='ERROR', errors=e.args), 400
+
+
+@app.route('/api/invoices', methods=['GET'])
+def get_invoices():
+    try:
+        query_result = Invoice.query.all()
+        invoices = invoices_schema.dump(query_result)
+        return jsonify(invoices), 200
+    except Exception as e:
+        return jsonify(status='ERROR', errors=e.args), 400
+
+
+@app.route('/api/invoices/<invoice_id>', methods=['GET'])
+def get_invoice(invoice_id: str):
+    try:
+        query_result = Invoice.query.filter_by(invoice_id=invoice_id).first()
+        invoice = invoice_schema.dump(query_result)
+        return jsonify(invoice), 200
+    except Exception as e:
+        return jsonify(status='ERROR', errors=e.args), 400
+
+
+@app.route('/api/invoices/<invoice_id>/download', methods=['GET'])
+def download_invoice(invoice_id: str):
+    try:
+        query_result = Invoice.query.filter_by(invoice_id=invoice_id).first()
+        invoice = invoice_schema.dump(query_result)
+        invoice['invoice_number'] = str(invoice['invoice_number']).zfill(8)
+        invoice['created_at'] = datetime.fromisoformat(invoice['created_at'])
+        template = template_env.get_template('invoice_template.html')
+        html = template.render(invoice=invoice, currency='SAR')
+        filename = f'invoice-{invoice["invoice_number"]}.pdf'
+        filepath = f'pdf/{filename}'
+        pdfkit.from_string(html, filepath)
+        return send_file(filepath, attachment_filename=filename), 200
+    except Exception as e:
         return jsonify(status='ERROR', errors=e.args), 400
 
 
@@ -316,30 +383,32 @@ clients_schema = ClientSchema(many=True)
 
 class Invoice(db.Model):
     __tablename__ = 'invoices'
+
     invoice_id = Column(String, unique=True)
     invoice_number = Column(Integer, primary_key=True, autoincrement=True)
     client_id = Column(String, ForeignKey('clients.client_id'))
     invoice_items = relationship('InvoiceItem', backref='invoice')
-    client_details = relationship('Client', backref='invoice')
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     invoice_gross_amount = Column(Float, nullable=False)
     total_discount_amount = Column(Float, nullable=False)
     total_tax_amount = Column(Float, nullable=False)
     invoice_net_amount = Column(Float, nullable=False)
 
+    # Copy these fields from Client details as they ar subject to change
+    client_name = Column(String, nullable=False)
+    client_tin = Column(String, nullable=False)
+    client_address = Column(String, nullable=False)
+    client_city = Column(String, nullable=False)
+    is_client_taxable = Column(String, nullable=False)
+
 
 class InvoiceItem(db.Model):
     __tablename__ = 'invoice_items'
+
     invoice_item_id = Column(String, primary_key=True)
     product_id = Column(String, ForeignKey('products.product_id'))
     invoice_id = Column(String, ForeignKey('invoices.invoice_id'))
-    product_name = Column(String, nullable=False)
-    product_price = Column(Float, nullable=False)
     product_quantity = Column(Float, nullable=False)
-    product_price_currency = Column(String, nullable=False)
-    product_discount_percent = Column(Float, nullable=False)
-    product_markup_percent = Column(Float, nullable=False)
-    product_vat_percent = Column(Float, nullable=False)
     total_price = Column(Float, nullable=False)
     markup_amount = Column(Float, nullable=False)
     gross_amount = Column(Float, nullable=False)
@@ -347,6 +416,14 @@ class InvoiceItem(db.Model):
     amount_after_discount = Column(Float, nullable=False)
     vat_amount = Column(Float, nullable=False)
     net_amount = Column(Float, nullable=False)
+
+    # Copy these fields from Product details as they ar subject to change
+    product_name = Column(String, nullable=False)
+    product_price = Column(Float, nullable=False)
+    product_price_currency = Column(String, nullable=False)
+    product_discount_percent = Column(Float, nullable=False)
+    product_markup_percent = Column(Float, nullable=False)
+    product_vat_percent = Column(Float, nullable=False)
 
 
 class InvoiceItemSchema(ma.Schema):
@@ -376,12 +453,16 @@ class InvoiceSchema(ma.Schema):
     invoice_id = fields.String()
     invoice_number = fields.Integer()
     invoice_items = fields.List(fields.Nested(InvoiceItemSchema(exclude=('invoice_id',))))
-    client_details = fields.Nested(ClientSchema)
     created_at = fields.DateTime()
     invoice_gross_amount = fields.Float()
     total_discount_amount = fields.Float()
     total_tax_amount = fields.Float()
     invoice_net_amount = fields.Float()
+    client_name = fields.String()
+    client_tin = fields.String()
+    client_address = fields.String()
+    client_city = fields.String()
+    is_client_taxable = fields.Boolean()
 
 
 invoice_schema = InvoiceSchema()
