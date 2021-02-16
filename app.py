@@ -23,6 +23,9 @@ CORS(app)
 template_loader = jinja2.FileSystemLoader(searchpath="./templates")
 template_env = jinja2.Environment(loader=template_loader)
 
+if 'DYNO' in os.environ:
+    pdfkit_config = pdfkit.configuration(wkhtmltopdf='/app/bin/wkhtmltopdf')
+
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
@@ -313,7 +316,7 @@ def download_invoice(invoice_id: str):
         html = template.render(invoice=invoice, currency='SAR')
         filename = f'invoice-{invoice["invoice_number"]}.pdf'
         filepath = f'pdf/{filename}'
-        pdfkit.from_string(html, filepath)
+        pdfkit.from_string(html, filepath, configuration=pdfkit_config)
         return send_file(filepath, attachment_filename=filename), 200
     except Exception as e:
         return jsonify(status='ERROR', errors=e.args), 400
