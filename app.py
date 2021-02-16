@@ -23,8 +23,7 @@ CORS(app)
 template_loader = jinja2.FileSystemLoader(searchpath="./templates")
 template_env = jinja2.Environment(loader=template_loader)
 
-if 'DYNO' in os.environ:
-    pdfkit_config = pdfkit.configuration(wkhtmltopdf='/app/bin/wkhtmltopdf')
+pdfkit_config = pdfkit.configuration(wkhtmltopdf='/app/bin/wkhtmltopdf') if 'DYNO' in os.environ else None
 
 
 @event.listens_for(Engine, "connect")
