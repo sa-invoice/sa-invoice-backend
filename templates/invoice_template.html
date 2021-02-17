@@ -51,6 +51,7 @@
         #company {
           float: right;
           text-align: right;
+          white-space: nowrap;
         }
 
 
@@ -66,6 +67,10 @@
 
         #client .to {
           color: #777777;
+        }
+
+        .address {
+            white-space: nowrap;
         }
 
         h2.name {
@@ -218,7 +223,7 @@
       </div>
       <div id="company">
         <h2 class="name">AlphaTech SA</h2>
-        <div>455 Foggy Heights, AZ 85004, Saudi Arabia</div>
+        <div>455 Foggy Heights, AZ, Saudi Arabia</div>
         <div>(602) 519-0450</div>
         <div><a href="mailto:company@alphatech-sa.com">company@alphatech-sa.com</a></div>
       </div>
@@ -231,7 +236,7 @@
           <h2 class="name">{{ invoice.client_name }}</h2>
           <div class="address">{{ invoice.client_address }}</div>
           <div class="address">{{ invoice.client_city }}</div>
-          <div class="email"><a href="mailto:john@example.com">TIN: {{ invoice.client_tin }}</a></div>
+          <div class="email"><a href="">TIN: {{ invoice.client_tin }}</a></div>
         </div>
         <div id="invoice">
           <h2>INVOICE #{{ invoice.invoice_number }}</h2>
