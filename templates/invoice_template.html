@@ -3,12 +3,12 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>Example 2</title>
+    <title>Invoice #{{ invoice['invoice_number'] }}</title>
+    <link
+        href="https://fonts.googleapis.com/css?family=Source+Sans+Pro"
+        rel="stylesheet"
+    />
     <style>
-        @font-face {
-          font-family: SourceSansPro;
-          /* src: url(SourceSansPro-Regular.ttf); */
-        }
 
         .clearfix:after {
           content: "";
@@ -30,7 +30,7 @@
           background: #FFFFFF;
           font-family: Arial, sans-serif;
           font-size: 12px;
-          font-family: SourceSansPro;
+          font-family: Source Sans Pro;
         }
 
         header {
@@ -220,7 +220,7 @@
         <h2 class="name">AlphaTech SA</h2>
         <div>455 Foggy Heights, AZ 85004, Saudi Arabia</div>
         <div>(602) 519-0450</div>
-        <div><a href="mailto:company@example.com">company@alphatech-sa.com</a></div>
+        <div><a href="mailto:company@alphatech-sa.com">company@alphatech-sa.com</a></div>
       </div>
       </div>
     </header>

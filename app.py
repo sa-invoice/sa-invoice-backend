@@ -22,7 +22,6 @@ ma = Marshmallow(app)
 CORS(app)
 template_loader = jinja2.FileSystemLoader(searchpath="./templates")
 template_env = jinja2.Environment(loader=template_loader)
-
 pdfkit_config = pdfkit.configuration(wkhtmltopdf='/app/bin/wkhtmltopdf') if 'DYNO' in os.environ else None
 
 
