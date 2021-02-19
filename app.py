@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_file
 from flask_cors import CORS
 from sqlalchemy import event
 import os
@@ -11,7 +11,9 @@ from application.products.routes import products_api, insert_product
 
 app = Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'invoice_system.db')
+db_filename = os.path.join(basedir, 'invoice_system.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_filename
+app.config['SQLALCHEMY_ECHO'] = True
 
 db.init_app(app)
 ma = Marshmallow(app)
@@ -70,6 +72,12 @@ def db_seed():
         is_client_taxable=False
     )
     print('Database seeded!')
+
+
+# For dev purpose. Will be removed when using a DB server like MySQL or PostGresQL
+@app.route('/download_db', methods=['GET'])
+def download_db():
+    return send_file(db_filename, attachment_filename='invoice_system.db'), 200
 
 
 if __name__ == '__main__':
