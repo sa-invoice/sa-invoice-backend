@@ -10,7 +10,7 @@ class ProductSchema(Schema):
             'product_price_currency',
             'product_price',
             'product_discount_percent',
-            'product_vat_percent'
+            'product_vat_percent',
             'product_markup_percent'
         )
 

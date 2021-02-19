@@ -13,7 +13,7 @@ app = Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
 db_filename = os.path.join(basedir, 'invoice_system.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_filename
-app.config['SQLALCHEMY_ECHO'] = True
+# app.config['SQLALCHEMY_ECHO'] = True
 
 db.init_app(app)
 ma = Marshmallow(app)

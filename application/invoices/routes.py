@@ -88,10 +88,12 @@ def create_invoice(**kwargs):
             item = InvoiceItem(**invoice_items[i], invoice_item_id=uuid4().hex)
             data['invoice_items'][i] = item
         invoice = Invoice(**data)
-        if not is_dryrun:
+        if is_dryrun:
+            return jsonify(status='SUCCESS', message='Invoice creation dry run successful!', invoice_details=invoice_schema.dump(invoice)), 200
+        else:
             db.session.add(invoice)
             db.session.commit()
-        return jsonify(status='SUCCESS', message='Invoice created successfully!', invoice_details=invoice_schema.dump(invoice)), 201
+            return jsonify(status='SUCCESS', message='Invoice created successfully!', invoice_details=invoice_schema.dump(invoice)), 201
     except Exception as e:
         db.session.rollback()
         return jsonify(status='ERROR', errors=e.args), 400
