@@ -23,7 +23,6 @@ pdfkit_config = pdfkit.configuration(wkhtmltopdf='/app/bin/wkhtmltopdf') if 'DYN
 
 @invoices_api.route('', methods=['POST'])
 def create_invoice(**kwargs):
-    is_dryrun = request.args.get('dryrun').lower() in ('true', '1')
     try:
         data = request.get_json()
         invoice_id = uuid4().hex
@@ -88,6 +87,7 @@ def create_invoice(**kwargs):
             item = InvoiceItem(**invoice_items[i], invoice_item_id=uuid4().hex)
             data['invoice_items'][i] = item
         invoice = Invoice(**data)
+        is_dryrun = request.args.get('dryrun').lower() in ('true', '1') if request.args.get('dryrun') else False
         if is_dryrun:
             return jsonify(status='SUCCESS', message='Invoice creation dry run successful!', invoice_details=invoice_schema.dump(invoice)), 200
         else:
