@@ -37,48 +37,5 @@ def db_create():
     print('Database Created!')
 
 
-@app.cli.command('db_drop')
-def drop_all():
-    db.drop_all()
-    print('Database dropped!')
-
-
-@app.cli.command('db_seed')
-def db_seed():
-    insert_product(
-        product_name='Printing',
-        product_description='Print various sizes',
-        product_price=50,
-        product_vat_percent=5
-    )
-    insert_product(
-        product_name='Designing',
-        product_description='Design various stuff',
-        product_price=50,
-        product_vat_percent=5
-    )
-    insert_client(
-        client_name='Alpha Tech',
-        client_tin='82375628378',
-        client_address='Somewhere on the earth',
-        client_city='Jedda',
-        is_client_taxable=True
-    )
-    insert_client(
-        client_name='Beta Tech',
-        client_tin='82375628379',
-        client_address='Somewhere on the earth',
-        client_city='Bangalore',
-        is_client_taxable=False
-    )
-    print('Database seeded!')
-
-
-# For dev purpose. Will be removed when using a DB server like MySQL or PostGresQL
-@app.route('/download_db', methods=['GET'])
-def download_db():
-    return send_file(db_filename, attachment_filename='invoice_system.db'), 200
-
-
 if __name__ == '__main__':
     app.run()
