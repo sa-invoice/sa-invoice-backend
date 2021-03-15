@@ -1,13 +1,13 @@
-from flask import Flask, jsonify, send_file
+from flask import Flask
 from flask_cors import CORS
 from sqlalchemy import event
 import os
 from flask_marshmallow import Marshmallow
 from sqlalchemy.engine import Engine
 from application import db
-from application.clients.routes import clients_api, insert_client
+from application.clients.routes import clients_api
 from application.invoices.routes import invoices_api
-from application.products.routes import products_api, insert_product
+from application.products.routes import products_api
 
 app = Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
